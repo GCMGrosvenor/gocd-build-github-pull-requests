@@ -15,6 +15,7 @@ import com.tw.go.plugin.model.Revision;
 import com.tw.go.plugin.util.ListUtil;
 import com.tw.go.plugin.util.StringUtil;
 import in.ashwanthkumar.gocd.github.provider.Provider;
+import in.ashwanthkumar.gocd.github.provider.github.GHUtils;
 import in.ashwanthkumar.gocd.github.util.JSONUtils;
 import org.apache.commons.io.IOUtils;
 
@@ -157,18 +158,21 @@ public class GitHubPRBuildPlugin implements GoPlugin {
         LOGGER.info(String.format("Flyweight: %s", flyweightFolder));
 
         try {
+            Properties props = GHUtils.readPropertyFile();
+            String branch = props.getProperty("defaultbranch", "master");
+
             GitHelper git = HelperFactory.gitCmd(gitConfig, new File(flyweightFolder));
             git.cloneOrFetch(provider.getRefSpec());
             Map<String, String> branchToRevisionMap = git.getBranchToRevisionMap(provider.getRefPattern());
             Revision revision = git.getLatestRevision();
 
             Map<String, Object> response = new HashMap<String, Object>();
-            Map<String, Object> revisionMap = getRevisionMap(gitConfig, "master", revision);
+            Map<String, Object> revisionMap = getRevisionMap(gitConfig, branch, revision);
             response.put("revision", revisionMap);
             Map<String, String> scmDataMap = new HashMap<String, String>();
             scmDataMap.put(BRANCH_TO_REVISION_MAP, JSONUtils.toJSON(branchToRevisionMap));
             response.put("scm-data", scmDataMap);
-            LOGGER.info(String.format("Triggered build for master with head at %s", revision.getRevision()));
+            LOGGER.info(String.format("Triggered build for %s with head at %s", branch, revision.getRevision()));
             return renderJSON(SUCCESS_RESPONSE_CODE, response);
         } catch (Throwable t) {
             LOGGER.warn("get latest revision: ", t);
